@@ -4,28 +4,29 @@
 // xml là một hàm được sử dụng để tạo các phần tử XML trong các mẫu OWL.
 const { Component, mount, xml } = owl;
 
-// Owl Components
-class Root extends Component {
+// -------------------------------------------------------------------------
+// Task Component
+// -------------------------------------------------------------------------
+class Task extends Component {
+    static template = xml /* xml */`
+        <div class="task" t-att-class="props.task.isCompleted ? 'done' : ''">
+        <input type="checkbox" t-att-checked="props.task.isCompleted"/>
+        <span><t t-esc="props.task.text"/></span>
+        </div>`;
+    static props = ["task"];
+}
 
-    // Đoạn mã này định nghĩa một mẫu OWL để hiển thị danh sách các công việc (tasks) dưới dạng các phần tử HTML. Mẫu này sử dụng các đặc tính của OWL để tạo ra các phần tử HTML dựa trên các đối tượng trong mảng tasks.
-    // Cụ thể, các phần tử HTML được tạo ra bao gồm:
-    //     Một phần tử <div> có class là task-list, đại diện cho danh sách các công việc.
-    //     Một phần tử <t> được sử dụng để lặp qua các đối tượng trong mảng tasks.
-    //     Trong mỗi vòng lặp, một phần tử <div> có class là task được tạo ra, đại diện cho một công việc.
-    //     Trong phần tử <div> của mỗi công việc, một phần tử <input> kiểu checkbox được tạo ra, với thuộc tính checked được thiết lập bằng thuộc tính t-att-checked="task.isCompleted", đại diện cho trạng thái hoàn thành của công việc.
-    //     Ngoài ra, trong phần tử <div> của mỗi công việc còn có một phần tử <span> chứa nội dung của công việc, được tạo ra bằng cú pháp t-esc="task.text", đại diện cho nội dung của công việc.
-    // Trong tổng thể, mẫu OWL này sử dụng các đặc tính của OWL để tạo ra các phần tử HTML dựa trên các đối tượng trong mảng tasks, giúp cho việc hiển thị danh sách các công việc trở nên dễ dàng hơn.
-    static template = xml/* xml */ `
-    <div class="task-list">
-        <t t-foreach="tasks" t-as="task" t-key="task.id">
-            <div class="task" t-att-class="task.isCompleted ? 'done' : ''">
-                <input type="checkbox" t-att-checked="task.isCompleted"/>
-                <span><t t-esc="task.text"/></span>
-            </div>
-        </t>
-    </div>`;
-    // Mẫu này chứa một vòng lặp t-foreach để lặp qua các công việc trong mảng tasks. Nó có thể tìm thấy danh sách tasks từ thành phần (component) vì ngữ cảnh (context) của việc render chứa các thuộc tính của thành phần đó. Lưu ý rằng chúng ta sử dụng id của mỗi công việc làm t-key, điều này rất phổ biến. Có hai lớp css: task-list và task, mà chúng ta sẽ sử dụng trong phần tiếp theo.
-    // Cuối cùng, hãy chú ý đến việc sử dụng thuộc tính t-att-checked: tiền tố một thuộc tính bằng t-att khiến nó trở thành động. Owl sẽ đánh giá biểu thức và đặt nó làm giá trị của thuộc tính.
+// -------------------------------------------------------------------------
+// Root Component
+// -------------------------------------------------------------------------
+class Root extends Component {
+    static template = xml /* xml */`
+        <div class="task-list">
+            <t t-foreach="tasks" t-as="task" t-key="task.id">
+            <Task task="task"/>
+            </t>
+        </div>`;
+    static components = { Task };
 
     // Đoạn mã này định nghĩa một mảng các đối tượng đại diện cho các công việc (tasks). Mỗi đối tượng trong mảng đại diện cho một công việc, bao gồm các thuộc tính sau:
     //     id: là một số nguyên duy nhất đại diện cho id của công việc.
@@ -49,4 +50,13 @@ class Root extends Component {
 // Đoạn code mount(Root, document.body); được sử dụng để gắn một thành phần OWL gốc (root component) vào thân của tài liệu HTML.
 // Tham số đầu tiên (Root) là tên của thành phần OWL gốc, tham số thứ hai (document.body) là phần tử HTML nơi thành phần OWL sẽ được gắn vào.
 // Khi được gọi, hàm mount sẽ tạo một instance của thành phần OWL gốc và gắn nó vào phần tử HTML được chỉ định. Sau đó, thành phần sẽ được hiển thị trên trình duyệt của người dùng.
-mount(Root, document.body);
+// -------------------------------------------------------------------------
+// Setup
+// -------------------------------------------------------------------------
+mount(Root, document.body, {dev: true});
+
+// Đã xảy ra rất nhiều thứ ở đây:
+//     Đầu tiên, chúng ta có một thành phần con Task, được định nghĩa ở đầu tệp,
+//     khi chúng ta định nghĩa một thành phần con, nó cần được thêm vào khóa components tĩnh của thành phần cha của nó, để Owl có thể có một tham chiếu đến nó,
+//     thành phần con Task có một khóa props: điều này chỉ hữu ích cho mục đích xác nhận. Nó nói rằng mỗi Task phải được cung cấp chính xác một prop, có tên là task. Nếu điều này không xảy ra, Owl sẽ ném ra một lỗi. Điều này rất hữu ích khi tái cấu trúc các thành phần
+//     cuối cùng, để kích hoạt xác nhận props, chúng ta cần đặt chế độ của Owl thành dev. Điều này được thực hiện trong đối số cuối cùng của hàm mount. Lưu ý rằng điều này nên được loại bỏ khi ứng dụng được sử dụng trong một môi trường sản xuất thực tế, vì chế độ dev sẽ chậm hơn một chút do các kiểm tra và xác nhận thêm.
