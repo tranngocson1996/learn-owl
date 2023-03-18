@@ -13,3 +13,19 @@
 .task.done {
     opacity: 0.7;
 }
+
+.todo-app {
+    width: 300px;
+    margin: 50px auto;
+    background: aliceblue;
+    padding: 10px;
+}
+
+.todo-app>input {
+    display: block;
+    margin: auto;
+}
+
+.task-list {
+    margin-top: 8px;
+}
