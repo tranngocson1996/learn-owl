@@ -4,7 +4,15 @@
 // xml: phương thức này được sử dụng để biến đổi một chuỗi XML thành một đối tượng DOM. Nó được sử dụng trong các thành phần Owl để tạo ra các phần tử HTML mà không cần viết bằng tay.
 // useRef: phương thức này được sử dụng để tạo ra một tham chiếu đến một phần tử HTML bất kỳ trong DOM. Tham chiếu này có thể được sử dụng để lấy giá trị của phần tử, hoặc để cập nhật nội dung của phần tử khi cần thiết.
 // onMounted: phương thức này được sử dụng để đăng ký một hàm được gọi khi thành phần được gắn vào DOM. Nó thường được sử dụng để thực hiện các thao tác khởi tạo hoặc tải dữ liệu cho thành phần.
-const { Component, mount, xml, useRef, onMounted } = owl;
+// Tuy nhiên, trong đó có thêm phương thức useState, được sử dụng để lưu trữ trạng thái của một thành phần. Khi trạng thái thay đổi, thành phần sẽ được render lại để hiển thị các thay đổi này.
+
+// Cụ thể, phương thức useState nhận vào một giá trị khởi tạo cho trạng thái, và trả về một mảng gồm hai phần tử. Phần tử đầu tiên là giá trị hiện tại của trạng thái, phần tử thứ hai là một hàm để cập nhật giá trị của trạng thái. Khi hàm này được gọi, trạng thái sẽ được cập nhật và thành phần sẽ được render lại.
+// Ví dụ:
+// const [count, setCount] = useState(0);
+// Ở đây, giá trị khởi tạo cho trạng thái là 0. Biến count sẽ chứa giá trị hiện tại của trạng thái, và biến setCount sẽ là hàm để cập nhật giá trị của trạng thái.
+// Khi muốn cập nhật giá trị của trạng thái, ta gọi hàm setCount và truyền vào giá trị mới:
+// setCount(count + 1);
+const { Component, mount, xml, useRef, onMounted, useState } = owl;
 
 // -------------------------------------------------------------------------
 // Task Component
@@ -35,23 +43,11 @@ class Root extends Component {
         </div>`;
     static components = { Task };
 
-    // Đoạn mã này định nghĩa một mảng các đối tượng đại diện cho các công việc (tasks). Mỗi đối tượng trong mảng đại diện cho một công việc, bao gồm các thuộc tính sau:
-    //     id: là một số nguyên duy nhất đại diện cho id của công việc.
-    //     text: là một chuỗi đại diện cho nội dung của công việc.
-    //     isCompleted: là một giá trị logic đại diện cho trạng thái hoàn thành của công việc (true nếu đã hoàn thành, false nếu chưa hoàn thành).
-    // Ví dụ trên cho thấy cách lưu trữ thông tin các công việc trong một mảng đối tượng, giúp cho việc quản lý và hiển thị các công việc trở nên dễ dàng hơn trong ứng dụng.
-    tasks = [
-        {
-            id: 1,
-            text: "buy milk",
-            isCompleted: true,
-        },
-        {
-            id: 2,
-            text: "clean house",
-            isCompleted: false,
-        },
-    ];
+    nextId = 1;
+    // Đây là khai báo biến tasks trong Owl, sử dụng phương thức useState để lưu trữ trạng thái của mảng các công việc.
+    // Trong đó, giá trị khởi tạo cho trạng thái của tasks là một mảng rỗng, được truyền vào hàm useState. Khi thành phần được render lần đầu tiên, tasks sẽ có giá trị ban đầu là một mảng rỗng.
+    // Sau đó, khi có thay đổi về mảng tasks, ta sẽ gọi hàm được trả về bởi useState để cập nhật giá trị của tasks. Hàm này sẽ cập nhật giá trị của mảng tasks và kích hoạt việc render lại của thành phần để hiển thị các thay đổi này.
+    tasks = useState([]);
 
     // Đây là phương thức setup trong một thành phần Owl. Phương thức này được sử dụng để thực hiện các thao tác khởi tạo và cấu hình cho thành phần.
     // Trong phương thức này, đầu tiên ta sử dụng phương thức useRef để tạo một tham chiếu đến phần tử input có tên là "add-input". Tham chiếu này được lưu trữ trong biến inputRef.
@@ -62,16 +58,23 @@ class Root extends Component {
         onMounted(() => inputRef.el.focus());
     }
 
-    // Đây là phương thức addTask trong thể hiện Owl. Nó nhận một tham số ev, là một đối tượng sự kiện. Khi người dùng gõ một phím trên input, đối tượng sự kiện này được truyền vào phương thức.
-    // Phương thức addTask đầu tiên kiểm tra xem người dùng đã nhấn phím Enter hay chưa. Nếu đúng, nó lấy giá trị của input, sử dụng phương thức trim() để loại bỏ khoảng trắng đầu và cuối chuỗi, sau đó gán giá trị rỗng cho input để xóa nội dung của input.
-    // Cuối cùng, phương thức in ra một thông báo console và không có gì được thực hiện bên trong khối todo. Các công việc liên quan đến thêm một công việc mới vào danh sách sẽ được thêm trong khối này.
+    // Đây là phương thức addTask trong Owl. Phương thức này được gọi khi người dùng nhấn phím Enter trên input để thêm một công việc mới vào danh sách.
+    // Trong phương thức này, đầu tiên ta kiểm tra xem người dùng đã nhấn phím Enter hay chưa. Nếu đã nhấn phím Enter (mã phím là 13), ta lấy giá trị của input và sử dụng phương thức trim() để loại bỏ các khoảng trắng ở đầu và cuối chuỗi. Sau đó, ta gán giá trị rỗng cho input để xóa nội dung của input.
+    // Tiếp theo, ta kiểm tra xem giá trị của input sau khi đã được loại bỏ khoảng trắng có rỗng hay không. Nếu không rỗng, ta tạo một công việc mới với các thuộc tính id, text, isCompleted, và thêm công việc mới này vào mảng tasks bằng phương thức push().
+    // Lưu ý rằng trong phương thức này, ta sử dụng thuộc tính nextId và tasks của đối tượng this. Đối tượng này tham chiếu đến đối tượng hiện tại của thành phần, cho phép ta truy cập và cập nhật các thuộc tính và phương thức của thành phần trong phương thức này.
     addTask(ev) {
         // 13 is keycode for ENTER
         if (ev.keyCode === 13) {
             const text = ev.target.value.trim();
             ev.target.value = "";
-            console.log('adding task', text);
-            // todo
+            if (text) {
+                const newTask = {
+                    id: this.nextId++,
+                    text: text,
+                    isCompleted: false,
+                };
+                this.tasks.push(newTask);
+            }
         }
     }
 }
