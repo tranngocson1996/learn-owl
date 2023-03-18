@@ -20,10 +20,20 @@ const { Component, mount, xml, useRef, onMounted, useState } = owl;
 class Task extends Component {
     static template = xml /* xml */`
         <div class="task" t-att-class="props.task.isCompleted ? 'done' : ''">
-        <input type="checkbox" t-att-checked="props.task.isCompleted"/>
-        <span><t t-esc="props.task.text"/></span>
+            <input type="checkbox" t-att-checked="props.task.isCompleted" t-on-click="toggleTask"/>
+            <span><t t-esc="props.task.text"/></span>
+            <span class="delete" t-on-click="deleteTask">🗑</span>
         </div>`;
-    static props = ["task"];
+
+    static props = ["task", "onDelete"];
+
+    deleteTask() {
+        this.props.onDelete(this.props.task);
+    }
+
+    toggleTask() {
+        this.props.task.isCompleted = !this.props.task.isCompleted;
+    }
 }
 
 // -------------------------------------------------------------------------
@@ -34,11 +44,16 @@ class Root extends Component {
     // Thuộc tính t-on-keyup được sử dụng để gọi một phương thức trong thể hiện Owl khi người dùng gõ một phím trên bàn phím khi focus đang ở trên input. Trong trường hợp này, phương thức addTask được gọi.
     // Có thêm một thuộc tính mới là t-ref với giá trị là "add-input".
     // Thuộc tính t-ref được sử dụng để đặt một tham chiếu đến phần tử HTML trong thể hiện Owl. Trong trường hợp này, tham chiếu được đặt tên là "add-input". Tham chiếu này có thể được sử dụng trong phương thức addTask để lấy giá trị của input và xóa nội dung của nó sau khi một công việc mới được thêm vào danh sách.
+
+    // Đây là một thành phần Task trong Owl, được sử dụng để hiển thị thông tin của một công việc.
+    // Trong đó, thuộc tính task được truyền vào thành phần Task để đại diện cho thông tin của công việc cần hiển thị. Thuộc tính này có thể chứa các thông tin như tiêu đề, mô tả, ngày hết hạn, trạng thái, v.v.
+    // Để xóa một công việc, ta sử dụng sự kiện onDelete của thành phần Task, được kết nối với phương thức deleteTask của thành phần cha. Khi người dùng thực hiện hành động xóa công việc, sự kiện onDelete sẽ được kích hoạt và phương thức deleteTask sẽ được gọi để xóa công việc khỏi danh sách.
+    // Lưu ý rằng trong đoạn mã này, ta sử dụng cú pháp onDelete.bind="deleteTask" để kết nối phương thức deleteTask với sự kiện onDelete. Khi sự kiện này được kích hoạt, phương thức deleteTask sẽ được gọi với đối tượng this là đối tượng hiện tại của thành phần.
     static template = xml /* xml */`
         <input placeholder="Enter a new task" t-on-keyup="addTask" t-ref="add-input"/>
         <div class="task-list">
             <t t-foreach="tasks" t-as="task" t-key="task.id">
-            <Task task="task"/>
+            <Task task="task" onDelete.bind="deleteTask"/>
             </t>
         </div>`;
     static components = { Task };
@@ -48,6 +63,15 @@ class Root extends Component {
     // Trong đó, giá trị khởi tạo cho trạng thái của tasks là một mảng rỗng, được truyền vào hàm useState. Khi thành phần được render lần đầu tiên, tasks sẽ có giá trị ban đầu là một mảng rỗng.
     // Sau đó, khi có thay đổi về mảng tasks, ta sẽ gọi hàm được trả về bởi useState để cập nhật giá trị của tasks. Hàm này sẽ cập nhật giá trị của mảng tasks và kích hoạt việc render lại của thành phần để hiển thị các thay đổi này.
     tasks = useState([]);
+
+    // Đây là phương thức deleteTask trong Owl, được sử dụng để xóa một công việc khỏi danh sách.
+    // Trong phương thức này, ta truyền vào tham số task, đại diện cho công việc cần xóa. Đầu tiên, ta sử dụng phương thức findIndex của mảng tasks để tìm ra vị trí của công việc cần xóa trong mảng. Cụ thể, ta tìm ra phần tử đầu tiên trong mảng mà có thuộc tính id bằng với id của công việc cần xóa. Nếu không tìm thấy, phương thức findIndex sẽ trả về giá trị -1.
+    // Sau đó, ta sử dụng phương thức splice của mảng tasks để xóa đi một phần tử tại vị trí đã tìm được. Phương thức này nhận vào hai tham số: vị trí cần xóa và số lượng phần tử cần xóa. Trong trường hợp này, ta cần xóa đi một phần tử nên số lượng phần tử cần xóa là 1.
+    // Lưu ý rằng trong phương thức này, ta sử dụng thuộc tính tasks của đối tượng this. Đối tượng này tham chiếu đến đối tượng hiện tại của thành phần, cho phép ta truy cập và cập nhật các thuộc tính và phương thức của thành phần trong phương thức này.
+    deleteTask(task) {
+        const index = this.tasks.findIndex(t => t.id === task.id);
+        this.tasks.splice(index, 1);
+    }
 
     // Đây là phương thức setup trong một thành phần Owl. Phương thức này được sử dụng để thực hiện các thao tác khởi tạo và cấu hình cho thành phần.
     // Trong phương thức này, đầu tiên ta sử dụng phương thức useRef để tạo một tham chiếu đến phần tử input có tên là "add-input". Tham chiếu này được lưu trữ trong biến inputRef.
