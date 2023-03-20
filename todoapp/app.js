@@ -87,11 +87,18 @@ function createTaskStore() {
 // -------------------------------------------------------------------------
 // Task Component
 // -------------------------------------------------------------------------
+// Đây là một đoạn mã HTML được sử dụng trong Owl để tạo ra một checkbox và một nhãn cho một công việc trong danh sách công việc.
+// Trong đó, phần tử <input> được sử dụng để tạo ra checkbox. Thuộc tính type của phần tử này được đặt là "checkbox" để tạo ra một checkbox. Thuộc tính t-att-checked được sử dụng để ràng buộc trạng thái checked của checkbox với thuộc tính isCompleted của công việc được truyền vào thông qua props. Nếu isCompleted của công việc là true, checkbox sẽ được check.
+// Thuộc tính t-att-id được sử dụng để đặt ID của checkbox bằng ID của công việc được truyền vào thông qua props. Điều này giúp cho checkbox và nhãn tương ứng có thể được liên kết với nhau thông qua thuộc tính for của nhãn.
+// Phần tử <label> được sử dụng để tạo ra một nhãn cho công việc. Thuộc tính t-att-for của phần tử này được ràng buộc với ID của checkbox thông qua props. Điều này giúp cho khi người dùng nhấp vào nhãn, checkbox sẽ được chọn.
+// Trong cặp thẻ nhãn <t> được sử dụng để hiển thị nội dung của công việc, được lấy từ thuộc tính text của công việc được truyền vào thông qua props.
 class Task extends Component {
     static template = xml/* xml */ `
     <div class="task" t-att-class="props.task.isCompleted ? 'done' : ''">
-        <input type="checkbox" t-att-checked="props.task.isCompleted" t-on-click="() => store.toggleTask(props.task)"/>
-        <span><t t-esc="props.task.text"/></span>
+        <input type="checkbox" t-att-checked="props.task.isCompleted"
+        t-att-id="props.task.id"
+        t-on-click="() => store.toggleTask(props.task)"/>
+        <label t-att-for="props.task.id"><t t-esc="props.task.text"/></label>
         <span class="delete" t-on-click="() => store.deleteTask(props.task)">🗑</span>
     </div>`;
 

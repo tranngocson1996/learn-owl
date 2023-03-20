@@ -65,3 +65,11 @@
 .task-panel span.active {
     font-weight: bold;
 }
+
+.task:hover {
+    background-color: #def0ff;
+}
+
+.task.done label {
+    text-decoration: line-through;
+}
