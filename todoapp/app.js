@@ -33,6 +33,16 @@ class TaskList {
     nextId = 1;
     tasks = [];
 
+    // Đây là hàm khởi tạo của lớp TaskList trong Owl, được sử dụng để khởi tạo một danh sách công việc mới.
+    // Trong đó, hàm khởi tạo có nhận đầu vào là một mảng các công việc (tasks). Nếu đầu vào này không được cung cấp, danh sách công việc sẽ được khởi tạo trống.
+    // Để tạo ra một danh sách công việc mới, hàm khởi tạo này sử dụng thuộc tính tasks để lưu trữ các công việc trong một mảng. Nếu đầu vào tasks được cung cấp, các công việc này sẽ được thêm vào mảng this.tasks.
+    // Sau đó, hàm khởi tạo tính toán một nextId để sử dụng cho việc thêm các công việc mới vào danh sách. Để tính toán nextId, hàm sử dụng phương thức map để tạo ra một mảng các ID của các công việc hiện có trong this.tasks. Sau đó, hàm sử dụng Math.max để tìm ra ID lớn nhất trong mảng này, và tăng giá trị này lên 1 để tạo ra một ID mới cho công việc mới thêm vào. Nếu danh sách công việc là trống, hàm chỉ định nextId là 1.
+    constructor(tasks) {
+        this.tasks = tasks || [];
+        const taskIds = this.tasks.map((t) => t.id);
+        this.nextId = taskIds.length ? Math.max(...taskIds) + 1 : 1;
+    }
+
     // Đây là một phương thức addTask trong đối tượng TaskStore của Owl, được sử dụng để thêm một công việc mới vào danh sách công việc.
     // Trong đó, phương thức addTask nhận đối số text, và trước khi thêm công việc mới vào danh sách, phương thức sẽ kiểm tra xem text có chứa ký tự trắng hay không và text có khác rỗng hay không. Nếu text hợp lệ, phương thức sẽ tạo ra một đối tượng task với các thuộc tính id, text, và isCompleted, và thêm đối tượng này vào danh sách công việc tasks trong đối tượng TaskStore.
     // Thuộc tính id của đối tượng task sẽ được tăng lên mỗi khi một công việc mới được thêm vào danh sách. Thuộc tính text của đối tượng task sẽ được gán bằng giá trị của đối số text. Thuộc tính isCompleted của đối tượng task sẽ được gán là false để đánh dấu công việc mới này chưa hoàn thành.
@@ -61,8 +71,17 @@ class TaskList {
     }
 }
 
+// Đây là một hàm được sử dụng để tạo ra một đối tượng taskStore trong Owl, chứa một reactive TaskList và các phương thức để lưu trữ danh sách công việc trong localStorage.
+// Đầu tiên, hàm tạo ra một hàm saveTasks, được sử dụng để lưu danh sách công việc hiện tại của taskStore vào localStorage. Hàm này sử dụng phương thức setItem của localStorage để lưu trữ một chuỗi JSON đại diện cho danh sách công việc.
+// Sau đó, hàm sử dụng phương thức getItem của localStorage để lấy danh sách công việc đã lưu từ trước đó. Nếu không có danh sách công việc nào trong localStorage, danh sách được khởi tạo rỗng.
+// Tiếp theo, hàm sử dụng reactive để tạo ra một đối tượng taskStore. Đối tượng này chứa một TaskList được khởi tạo với danh sách công việc ban đầu đã lấy từ localStorage. Ngoài ra, đối tượng taskStore cũng chứa một phương thức saveTasks để lưu danh sách công việc vào localStorage khi có thay đổi.
+// Sau khi tạo xong taskStore, hàm gọi phương thức saveTasks để lưu danh sách công việc hiện tại vào localStorage. Cuối cùng, hàm trả về đối tượng taskStore.
 function createTaskStore() {
-    return reactive(new TaskList());
+    const saveTasks = () => localStorage.setItem("todoapp", JSON.stringify(taskStore.tasks));
+    const initialTasks = JSON.parse(localStorage.getItem("todoapp") || "[]");
+    const taskStore = reactive(new TaskList(initialTasks), saveTasks);
+    saveTasks();
+    return taskStore;
 }
 
 // -------------------------------------------------------------------------
