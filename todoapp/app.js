@@ -5,34 +5,81 @@
 // useRef: phương thức này được sử dụng để tạo ra một tham chiếu đến một phần tử HTML bất kỳ trong DOM. Tham chiếu này có thể được sử dụng để lấy giá trị của phần tử, hoặc để cập nhật nội dung của phần tử khi cần thiết.
 // onMounted: phương thức này được sử dụng để đăng ký một hàm được gọi khi thành phần được gắn vào DOM. Nó thường được sử dụng để thực hiện các thao tác khởi tạo hoặc tải dữ liệu cho thành phần.
 // Tuy nhiên, trong đó có thêm phương thức useState, được sử dụng để lưu trữ trạng thái của một thành phần. Khi trạng thái thay đổi, thành phần sẽ được render lại để hiển thị các thay đổi này.
-
 // Cụ thể, phương thức useState nhận vào một giá trị khởi tạo cho trạng thái, và trả về một mảng gồm hai phần tử. Phần tử đầu tiên là giá trị hiện tại của trạng thái, phần tử thứ hai là một hàm để cập nhật giá trị của trạng thái. Khi hàm này được gọi, trạng thái sẽ được cập nhật và thành phần sẽ được render lại.
 // Ví dụ:
 // const [count, setCount] = useState(0);
 // Ở đây, giá trị khởi tạo cho trạng thái là 0. Biến count sẽ chứa giá trị hiện tại của trạng thái, và biến setCount sẽ là hàm để cập nhật giá trị của trạng thái.
 // Khi muốn cập nhật giá trị của trạng thái, ta gọi hàm setCount và truyền vào giá trị mới:
 // setCount(count + 1);
-const { Component, mount, xml, useRef, onMounted, useState } = owl;
+
+// reactive: là một hàm trong Owl, được sử dụng để tạo ra một đối tượng có tính chất "reactive", tức là khi các thuộc tính của đối tượng này thay đổi, các thành phần liên quan sẽ được tự động cập nhật để hiển thị các thay đổi này.
+// useEnv: là một hook trong Owl, được sử dụng để truy cập đối tượng môi trường hiện tại của ứng dụng. Đối tượng này chứa các biến và phương thức được định nghĩa bởi ứng dụng, và có thể được sử dụng để chia sẻ dữ liệu giữa các thành phần.
+const { Component, mount, xml, useRef, onMounted, useState, reactive, useEnv } = owl;
+
+// Đây là một hàm useStore trong Owl, được sử dụng để truy cập đến đối tượng store trong đối tượng môi trường của ứng dụng.
+// Trong đó, ta sử dụng hook useEnv để lấy đối tượng môi trường hiện tại của ứng dụng, và truy cập đến thuộc tính store của đối tượng này bằng cách sử dụng phương thức useState. Sau đó, ta trả về giá trị của thuộc tính store dưới dạng một đối tượng trạng thái của Owl.
+// -------------------------------------------------------------------------
+// Store
+// -------------------------------------------------------------------------
+function useStore() {
+    const env = useEnv();
+    return useState(env.store);
+}
+
+// -------------------------------------------------------------------------
+// TaskList
+// -------------------------------------------------------------------------
+class TaskList {
+    nextId = 1;
+    tasks = [];
+
+    // Đây là một phương thức addTask trong đối tượng TaskStore của Owl, được sử dụng để thêm một công việc mới vào danh sách công việc.
+    // Trong đó, phương thức addTask nhận đối số text, và trước khi thêm công việc mới vào danh sách, phương thức sẽ kiểm tra xem text có chứa ký tự trắng hay không và text có khác rỗng hay không. Nếu text hợp lệ, phương thức sẽ tạo ra một đối tượng task với các thuộc tính id, text, và isCompleted, và thêm đối tượng này vào danh sách công việc tasks trong đối tượng TaskStore.
+    // Thuộc tính id của đối tượng task sẽ được tăng lên mỗi khi một công việc mới được thêm vào danh sách. Thuộc tính text của đối tượng task sẽ được gán bằng giá trị của đối số text. Thuộc tính isCompleted của đối tượng task sẽ được gán là false để đánh dấu công việc mới này chưa hoàn thành.
+    addTask(text) {
+        text = text.trim();
+        if (text) {
+            const task = {
+                id: this.nextId++,
+                text: text,
+                isCompleted: false,
+            };
+            this.tasks.push(task);
+        }
+    }
+  
+    toggleTask(task) {
+        task.isCompleted = !task.isCompleted;
+    }
+
+    // Đây là một phương thức deleteTask trong đối tượng TaskStore của Owl, được sử dụng để xóa một công việc khỏi danh sách công việc.
+    // Trong đó, phương thức deleteTask nhận đối số task, là một đối tượng công việc cần được xóa khỏi danh sách. Đầu tiên, phương thức sử dụng phương thức findIndex để tìm chỉ mục của đối tượng công việc này trong danh sách công việc tasks của đối tượng TaskStore. Điều này được thực hiện bằng cách so sánh thuộc tính id của công việc cần xóa với thuộc tính id của mỗi đối tượng công việc trong danh sách.
+    // Sau đó, phương thức sử dụng phương thức splice để xóa đối tượng công việc này khỏi danh sách công việc tasks. Đối số đầu tiên của phương thức splice là chỉ mục của đối tượng cần xóa, và đối số thứ hai là số lượng phần tử cần xóa.
+    deleteTask(task) {
+        const index = this.tasks.findIndex((t) => t.id === task.id);
+        this.tasks.splice(index, 1);
+    }
+}
+
+function createTaskStore() {
+    return reactive(new TaskList());
+}
 
 // -------------------------------------------------------------------------
 // Task Component
 // -------------------------------------------------------------------------
 class Task extends Component {
-    static template = xml /* xml */`
-        <div class="task" t-att-class="props.task.isCompleted ? 'done' : ''">
-            <input type="checkbox" t-att-checked="props.task.isCompleted" t-on-click="toggleTask"/>
-            <span><t t-esc="props.task.text"/></span>
-            <span class="delete" t-on-click="deleteTask">🗑</span>
-        </div>`;
+    static template = xml/* xml */ `
+    <div class="task" t-att-class="props.task.isCompleted ? 'done' : ''">
+        <input type="checkbox" t-att-checked="props.task.isCompleted" t-on-click="() => store.toggleTask(props.task)"/>
+        <span><t t-esc="props.task.text"/></span>
+        <span class="delete" t-on-click="() => store.deleteTask(props.task)">🗑</span>
+    </div>`;
 
-    static props = ["task", "onDelete"];
+    static props = ["task"];
 
-    deleteTask() {
-        this.props.onDelete(this.props.task);
-    }
-
-    toggleTask() {
-        this.props.task.isCompleted = !this.props.task.isCompleted;
+    setup() {
+        this.store = useStore();
     }
 }
 
@@ -40,65 +87,28 @@ class Task extends Component {
 // Root Component
 // -------------------------------------------------------------------------
 class Root extends Component {
-    // Đây là một phần tử HTML input. Thuộc tính placeholder được sử dụng để hiển thị một dòng chữ mờ trong input, nhắc nhở người dùng về mục đích của input. Trong trường hợp này, nó là "Nhập một công việc mới".
-    // Thuộc tính t-on-keyup được sử dụng để gọi một phương thức trong thể hiện Owl khi người dùng gõ một phím trên bàn phím khi focus đang ở trên input. Trong trường hợp này, phương thức addTask được gọi.
-    // Có thêm một thuộc tính mới là t-ref với giá trị là "add-input".
-    // Thuộc tính t-ref được sử dụng để đặt một tham chiếu đến phần tử HTML trong thể hiện Owl. Trong trường hợp này, tham chiếu được đặt tên là "add-input". Tham chiếu này có thể được sử dụng trong phương thức addTask để lấy giá trị của input và xóa nội dung của nó sau khi một công việc mới được thêm vào danh sách.
-
-    // Đây là một thành phần Task trong Owl, được sử dụng để hiển thị thông tin của một công việc.
-    // Trong đó, thuộc tính task được truyền vào thành phần Task để đại diện cho thông tin của công việc cần hiển thị. Thuộc tính này có thể chứa các thông tin như tiêu đề, mô tả, ngày hết hạn, trạng thái, v.v.
-    // Để xóa một công việc, ta sử dụng sự kiện onDelete của thành phần Task, được kết nối với phương thức deleteTask của thành phần cha. Khi người dùng thực hiện hành động xóa công việc, sự kiện onDelete sẽ được kích hoạt và phương thức deleteTask sẽ được gọi để xóa công việc khỏi danh sách.
-    // Lưu ý rằng trong đoạn mã này, ta sử dụng cú pháp onDelete.bind="deleteTask" để kết nối phương thức deleteTask với sự kiện onDelete. Khi sự kiện này được kích hoạt, phương thức deleteTask sẽ được gọi với đối tượng this là đối tượng hiện tại của thành phần.
-    static template = xml /* xml */`
+    static template = xml/* xml */ `
+        <div class="todo-app">
         <input placeholder="Enter a new task" t-on-keyup="addTask" t-ref="add-input"/>
         <div class="task-list">
-            <t t-foreach="tasks" t-as="task" t-key="task.id">
-            <Task task="task" onDelete.bind="deleteTask"/>
+            <t t-foreach="store.tasks" t-as="task" t-key="task.id">
+            <Task task="task"/>
             </t>
+        </div>
         </div>`;
     static components = { Task };
 
-    nextId = 1;
-    // Đây là khai báo biến tasks trong Owl, sử dụng phương thức useState để lưu trữ trạng thái của mảng các công việc.
-    // Trong đó, giá trị khởi tạo cho trạng thái của tasks là một mảng rỗng, được truyền vào hàm useState. Khi thành phần được render lần đầu tiên, tasks sẽ có giá trị ban đầu là một mảng rỗng.
-    // Sau đó, khi có thay đổi về mảng tasks, ta sẽ gọi hàm được trả về bởi useState để cập nhật giá trị của tasks. Hàm này sẽ cập nhật giá trị của mảng tasks và kích hoạt việc render lại của thành phần để hiển thị các thay đổi này.
-    tasks = useState([]);
-
-    // Đây là phương thức deleteTask trong Owl, được sử dụng để xóa một công việc khỏi danh sách.
-    // Trong phương thức này, ta truyền vào tham số task, đại diện cho công việc cần xóa. Đầu tiên, ta sử dụng phương thức findIndex của mảng tasks để tìm ra vị trí của công việc cần xóa trong mảng. Cụ thể, ta tìm ra phần tử đầu tiên trong mảng mà có thuộc tính id bằng với id của công việc cần xóa. Nếu không tìm thấy, phương thức findIndex sẽ trả về giá trị -1.
-    // Sau đó, ta sử dụng phương thức splice của mảng tasks để xóa đi một phần tử tại vị trí đã tìm được. Phương thức này nhận vào hai tham số: vị trí cần xóa và số lượng phần tử cần xóa. Trong trường hợp này, ta cần xóa đi một phần tử nên số lượng phần tử cần xóa là 1.
-    // Lưu ý rằng trong phương thức này, ta sử dụng thuộc tính tasks của đối tượng this. Đối tượng này tham chiếu đến đối tượng hiện tại của thành phần, cho phép ta truy cập và cập nhật các thuộc tính và phương thức của thành phần trong phương thức này.
-    deleteTask(task) {
-        const index = this.tasks.findIndex(t => t.id === task.id);
-        this.tasks.splice(index, 1);
-    }
-
-    // Đây là phương thức setup trong một thành phần Owl. Phương thức này được sử dụng để thực hiện các thao tác khởi tạo và cấu hình cho thành phần.
-    // Trong phương thức này, đầu tiên ta sử dụng phương thức useRef để tạo một tham chiếu đến phần tử input có tên là "add-input". Tham chiếu này được lưu trữ trong biến inputRef.
-    // Sau đó, ta sử dụng phương thức onMounted để đăng ký một hàm được gọi khi thành phần được gắn vào DOM. Trong hàm này, ta sử dụng thuộc tính el của tham chiếu inputRef để truy cập đến phần tử input trong DOM, và gọi phương thức focus() để đưa focus về phần tử đó, giúp người dùng có thể nhập dữ liệu vào input một cách thuận tiện hơn.
-    // Vì phương thức setup cần phải trả về một đối tượng chứa các thuộc tính và các phương thức được sử dụng trong thành phần, do đó cần phải thêm return {} cuối cùng của phương thức này.
     setup() {
         const inputRef = useRef("add-input");
         onMounted(() => inputRef.el.focus());
+        this.store = useStore();
     }
 
-    // Đây là phương thức addTask trong Owl. Phương thức này được gọi khi người dùng nhấn phím Enter trên input để thêm một công việc mới vào danh sách.
-    // Trong phương thức này, đầu tiên ta kiểm tra xem người dùng đã nhấn phím Enter hay chưa. Nếu đã nhấn phím Enter (mã phím là 13), ta lấy giá trị của input và sử dụng phương thức trim() để loại bỏ các khoảng trắng ở đầu và cuối chuỗi. Sau đó, ta gán giá trị rỗng cho input để xóa nội dung của input.
-    // Tiếp theo, ta kiểm tra xem giá trị của input sau khi đã được loại bỏ khoảng trắng có rỗng hay không. Nếu không rỗng, ta tạo một công việc mới với các thuộc tính id, text, isCompleted, và thêm công việc mới này vào mảng tasks bằng phương thức push().
-    // Lưu ý rằng trong phương thức này, ta sử dụng thuộc tính nextId và tasks của đối tượng this. Đối tượng này tham chiếu đến đối tượng hiện tại của thành phần, cho phép ta truy cập và cập nhật các thuộc tính và phương thức của thành phần trong phương thức này.
     addTask(ev) {
         // 13 is keycode for ENTER
         if (ev.keyCode === 13) {
-            const text = ev.target.value.trim();
-            ev.target.value = "";
-            if (text) {
-                const newTask = {
-                    id: this.nextId++,
-                    text: text,
-                    isCompleted: false,
-                };
-                this.tasks.push(newTask);
-            }
+        this.store.addTask(ev.target.value);
+        ev.target.value = "";
         }
     }
 }
@@ -109,7 +119,10 @@ class Root extends Component {
 // -------------------------------------------------------------------------
 // Setup
 // -------------------------------------------------------------------------
-mount(Root, document.body, {dev: true});
+const env = {
+    store: createTaskStore(),
+};
+mount(Root, document.body, { dev: true, env });
 
 // Đã xảy ra rất nhiều thứ ở đây:
 //     Đầu tiên, chúng ta có một thành phần con Task, được định nghĩa ở đầu tệp,
