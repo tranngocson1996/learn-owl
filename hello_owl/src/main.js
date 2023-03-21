@@ -1,5 +1,4 @@
-const { mount } = owl;
-
-import { Root } from "./root.js";
+import { mount } from "@odoo/owl";
+import { Root } from "./components/Root";
 
 mount(Root, document.body);
