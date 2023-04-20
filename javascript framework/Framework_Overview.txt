@@ -1,0 +1,215 @@
+CODE STRUCTURE
+Thư mục web/static/src chứa toàn bộ mã nguồn web/ javascript (và css và templates). Đây là danh sách các thư mục quan trọng nhất:
+    core/ hầu hết các tính năng cấp thấp
+    fields/ tất cả các thành phần trường
+    views/ tất cả các thành phần xem javascript (form, list, ...)
+    search/ bảng điều khiển, thanh tìm kiếm, bảng tìm kiếm, ...
+    webclient/ mã nguồn cụ thể cho web client: thanh điều hướng, menu người dùng, dịch vụ hành động, ...
+Thư mục gốc là web/static/src. Mọi thứ bên trong chỉ cần được nhập bằng cách sử dụng tiền tố @web. Ví dụ, đây là cách để nhập hàm memoize nằm trong web/static/src/core/utils/functions:
+import { memoize } from "@web/core/utils/functions";
+
+WEBCLIENT ARCHITECTURE
+Như đã đề cập ở trên, web client là một ứng dụng owl. Đây là phiên bản đơn giản hóa hơi của template của nó:
+<t t-name="web.WebClient" owl="1">
+    <body class="o_web_client">
+        <NavBar/>
+        <ActionContainer/>
+        <MainComponentsContainer/>
+    </body>
+</t>
+Như chúng ta có thể thấy, đó thực sự là một wrapper cho thanh điều hướng (navbar), hành động hiện tại và một số thành phần bổ sung khác. ActionContainer là một higher order component sẽ hiển thị bộ điều khiển hành động hiện tại (do đó, một hành động khách hàng hoặc một chế độ xem cụ thể trong trường hợp các hành động của loại act_window). Quản lý hành động là một phần lớn của công việc của nó: dịch vụ hành động giữ trong bộ nhớ một ngăn xếp của tất cả các hành động đang hoạt động (được đại diện trong breadcrumbs), và phối hợp mỗi thay đổi.
+Một điều thú vị khác để chú ý là MainComponentsContainer: đó đơn giản là một thành phần hiển thị tất cả các thành phần được đăng ký trong registry main_components. Đây là cách mà các phần khác của hệ thống có thể mở rộng web client.
+
+ENVIRONMENT
+Với vai trò là một ứng dụng Owl, Odoo web client định nghĩa môi trường riêng của nó (các thành phần có thể truy cập nó bằng cách sử dụng this.env). Dưới đây là mô tả về những gì Odoo thêm vào đối tượng môi trường chung:
+Khóa            Giá trị
+------------------------------------------------------------
+qweb            yêu cầu bởi Owl (chứa tất cả các mẫu)
+bus             bus chính, được sử dụng để phối hợp một số sự kiện chung
+services        tất cả các dịch vụ đã triển khai (thường nên truy cập với useService hook)
+debug           chuỗi. Nếu không trống, web client đang ở chế độ debug
+_t              hàm dịch
+isSmall         boolean. Nếu đúng, web client hiện đang ở chế độ di động (chiều rộng màn hình <= 767px)
+Ví dụ, để dịch một chuỗi trong một thành phần (lưu ý: các mẫu được tự động dịch, vì vậy không cần hành động cụ thể trong trường hợp đó), người dùng có thể làm như sau:
+const someString = this.env._t('some text');
+Có một tham chiếu đến môi trường là khá mạnh mẽ, bởi vì nó cung cấp truy cập vào tất cả các dịch vụ. Điều này hữu ích trong nhiều trường hợp: ví dụ, các mục menu người dùng chủ yếu được xác định dưới dạng một chuỗi và một hàm lấy env là đối số duy nhất. Điều này đủ để thể hiện tất cả các nhu cầu menu người dùng.
+
+BUILDING BLOCKS
+Hầu hết các thành phần của web client được xây dựng bằng một số loại trừu tượng: các registry, service, component và các hooks.
+Registries
+Registries (đăng ký) về cơ bản là một bản đồ khóa/giá trị đơn giản lưu trữ một số loại đối tượng cụ thể. Chúng là một phần quan trọng của tính mở rộng của giao diện người dùng: một khi một số đối tượng được đăng ký, phần còn lại của web client có thể sử dụng nó. Ví dụ, registry trường (field registry) chứa tất cả các thành phần trường (hoặc widget) mà có thể được sử dụng trong các chế độ xem.
+import { registry } from "./core/registry";
+class MyFieldChar extends owl.Component {
+    // some code
+}
+registry.category("fields").add("my_field_char", MyFieldChar);
+Lưu ý rằng chúng ta nhập registry chính từ @web/core/registry, sau đó mở registry con fields.
+Service
+Các dịch vụ (services) là các đoạn mã số có thời gian sống dài cung cấp một tính năng. Chúng có thể được nhập bởi các thành phần (với useService) hoặc bởi các dịch vụ khác. Ngoài ra, chúng có thể khai báo một tập hợp các phụ thuộc. Ở mặt khác, dịch vụ về cơ bản là một hệ thống DI (dependency injection). Ví dụ, dịch vụ thông báo cung cấp một cách để hiển thị thông báo hoặc dịch vụ rpc là cách thích hợp để thực hiện một yêu cầu đến máy chủ Odoo.
+Ví dụ sau đây đăng ký một dịch vụ đơn giản hiển thị một thông báo mỗi 5 giây:
+import { registry } from "./core/registry";
+const myService = {
+    dependencies: ["notification"],
+    start(env, { notification }) {
+        let counter = 1;
+        setInterval(() => {
+            notification.add(`Tick Tock ${counter++}`);
+        }, 5000);
+    }
+};
+serviceRegistry.add("myService", myService);
+Components and Hooks
+Các thành phần và hooks là các ý tưởng đến từ hệ thống thành phần Owl. Các thành phần Odoo đơn giản là các thành phần owl là một phần của web client.
+Hooks là một cách để phân tách mã, ngay cả nếu nó phụ thuộc vào vòng đời. Đây là một cách hợp thành/chức năng để tiêm một tính năng vào một thành phần. Chúng có thể được coi như là một loại mixin.
+function useCurrentTime() {
+    const state = useState({ now: new Date() });
+    const update = () => state.now = new Date();
+    let timer;
+    onWillStart(() => timer = setInterval(update, 1000));
+    onWillUnmount(() => clearInterval(timer));
+    return state;
+}
+
+CONTEXT
+Ngữ cảnh (Context)
+Một khái niệm quan trọng trong Odoo javascript là ngữ cảnh (context): nó cung cấp một cách cho mã để cung cấp thêm ngữ cảnh cho một cuộc gọi hàm hoặc một rpc, để các phần khác của hệ thống có thể phản ứng đúng với thông tin đó. Theo một cách nào đó, nó giống như một túi thông tin được truyền khắp mọi nơi. Nó hữu ích trong một số tình huống, chẳng hạn như cho phép máy chủ Odoo biết rằng một rpc mô hình đến từ một chế độ xem biểu mẫu cụ thể, hoặc kích hoạt/tắt một số tính năng trong một thành phần
+Có hai ngữ cảnh khác nhau trong Odoo web client: ngữ cảnh người dùng và ngữ cảnh hành động (vì vậy, chúng ta nên cẩn thận khi sử dụng từ "context": nó có thể có nghĩa khác nhau tùy thuộc vào tình huống).
+Đối tượng ngữ cảnh có thể hữu ích trong nhiều trường hợp, nhưng người dùng cần phải cẩn trọng để không sử dụng quá nhiều! Nhiều vấn đề có thể được giải quyết theo cách tiêu chuẩn mà không cần sửa đổi ngữ cảnh.
+User Context
+Ngữ cảnh người dùng là một đối tượng nhỏ chứa các thông tin liên quan đến người dùng hiện tại. Nó có sẵn thông qua dịch vụ người dùng (user service):
+class MyComponent extends Component {
+    setup() {
+        const user = useService("user");
+        console.log(user.context);
+    }
+}
+Nó chứa các thông tin sau:
+Tên                     Kiểu                Mô tả
+------------------------------------------------------------------------------------------------------
+allowed_company_ids     number[]            danh sách các id công ty hoạt động cho người dùng
+lang                    string              mã ngôn ngữ của người dùng (ví dụ như "en_us")
+tz                      string              múi giờ hiện tại của người dùng (ví dụ như "Europe/Brussels")
+Trong thực tế, dịch vụ orm tự động thêm ngữ cảnh người dùng vào mỗi yêu cầu của nó. Đây là lý do tại sao thường không cần phải nhập nó trực tiếp trong hầu hết các trường hợp.
+Phần tử đầu tiên của danh sách allowed_company_ids là công ty chính của người dùng.
+Action Context
+ir.actions.act_window và ir.actions.client hỗ trợ một trường ngữ cảnh tùy chọn. Trường này là một chuỗi đại diện cho một đối tượng. Mỗi khi hành động tương ứng được tải trong web client, trường ngữ cảnh này sẽ được đánh giá như một đối tượng và được truyền cho thành phần tương ứng với hành động đó.
+<field name="context">{'search_default_customer': 1}</field>
+Trường hợp sử dụng của trường ngữ cảnh là rất đa dạng. Ví dụ, các chế độ xem thêm ngữ cảnh hành động vào mỗi yêu cầu được gửi đến máy chủ. Một ứng dụng quan trọng khác là kích hoạt một số bộ lọc tìm kiếm theo mặc định (xem ví dụ ở trên).
+Đôi khi, khi chúng ta thực hiện các hành động mới một cách thủ công (do đó, theo cách lập trình, trong javascript), thì việc có thể mở rộng ngữ cảnh hành động sẽ rất hữu ích. Điều này có thể được thực hiện với đối số additional_context.
+// in setup
+let actionService = useService("action");
+// in some event handler
+actionService.doAction("addon_name.something", {
+    additional_context:{
+        default_period_id: defaultPeriodId
+    }
+});
+Trong ví dụ này, hành động có xml_id addon_name.something sẽ được tải và ngữ cảnh của nó sẽ được mở rộng với giá trị default_period_id. Đây là một trường hợp sử dụng rất quan trọng cho phép các nhà phát triển kết hợp các hành động với nhau bằng cách cung cấp một số thông tin cho hành động tiếp theo.
+
+PYTHON INTERPRETER
+Khung Odoo có một trình thông dịch python nhỏ tích hợp sẵn. Mục đích của nó là đánh giá các biểu thức python nhỏ. Điều này quan trọng vì các chế độ xem trong Odoo có các bộ điều chỉnh được viết bằng python, nhưng chúng cần được đánh giá bởi trình duyệt.
+import { evaluateExpr } from "@web/core/py_js/py";
+evaluateExpr("1 + 2*{'a': 1}.get('b', 54) + v", { v: 33 }); // returns 142
+Đoạn mã javascript py xuất ra 5 hàm:
+Các hàm tokenize, parse, parseExpr, evaluate, và evaluateExpr là các hàm được xuất ra bởi đoạn mã javascript py và có chức năng như sau:
+tokenize(expr): chia chuỗi biểu thức expr thành các token và trả về một danh sách các token.
+parse(tokens): dựng cây cú pháp trừu tượng (AST) biểu diễn biểu thức được đưa vào thông qua danh sách các token tokens.
+parseExpr(expr): dựng cây cú pháp trừu tượng (AST) biểu diễn biểu thức python hợp lệ được đưa vào thông qua chuỗi biểu thức expr.
+evaluate(ast[, context]): đánh giá biểu thức được biểu diễn bởi cây cú pháp trừu tượng (AST) ast với ngữ cảnh được cung cấp bởi đối tượng context.
+evaluateExpr(expr[, context]): đánh giá biểu thức python hợp lệ được đưa vào thông qua chuỗi biểu thức expr với ngữ cảnh được cung cấp bởi đối tượng context.
+Các hàm này cho phép các nhà phát triển đánh giá và thực thi mã Python trong trình duyệt, giúp thay đổi chế độ xem động hoặc thực hiện tính toán phía máy khách yêu cầu logic Python. Tuy nhiên, cần sử dụng chúng cẩn thận, vì thực thi mã Python không đáng tin cậy có thể gây ra rủi ro an ninh.
+
+DOMAINS
+Nói chung, miền trong Odoo đại diện cho một tập hợp các bản ghi phù hợp với một số điều kiện được chỉ định. Trong javascript, chúng thường được biểu diễn dưới dạng một danh sách các điều kiện (hoặc các toán tử: |, & hoặc ! ở dạng tiền tố) hoặc dưới dạng biểu thức chuỗi. Chúng không cần phải được chuẩn hóa (toán tử & được ngụ ý nếu cần thiết). Ví dụ:
+// list of conditions
+[]
+[["a", "=", 3]]
+[["a", "=", 1], ["b", "=", 2], ["c", "=", 3]]
+["&", "&", ["a", "=", 1], ["b", "=", 2], ["c", "=", 3]]
+["&", "!", ["a", "=", 1], "|", ["a", "=", 2], ["a", "=", 3]]
+// string expressions
+"[('some_file', '>', a)]"
+"[('date','>=', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"
+"[('date', '!=', False)]"
+Biểu thức chuỗi mạnh hơn so với biểu thức danh sách: chúng có thể chứa các biểu thức Python và các giá trị chưa được đánh giá, phụ thuộc vào một ngữ cảnh đánh giá. Tuy nhiên, việc xử lý biểu thức chuỗi khó hơn.
+Vì miền rất quan trọng trong trình duyệt web, Odoo cung cấp một lớp Domain:
+new Domain([["a", "=", 3]]).contains({ a: 3 }) // true
+const domain = new Domain(["&", "&", ["a", "=", 1], ["b", "=", 2], ["c", "=", 3]]);
+domain.contains({ a: 1, b: 2, c: 3 }); // true
+domain.contains({ a: -1, b: 2, c: 3 }); // false
+// next expression returns ["|", ("a", "=", 1), ("b", "<=", 3)]
+Domain.or([[["a", "=", 1]], "[('b', '<=', 3)]"]).toString();
+Đây là mô tả của một số phương thức quan trọng trong lớp Domain của Odoo:
+class Domain([descr]): phương thức khởi tạo của lớp Domain, nhận đầu vào là một miền mô tả dưới dạng chuỗi, danh sách hoặc một đối tượng Domain khác.
+Domain.contains(record): phương thức này kiểm tra xem bản ghi được truyền vào có phù hợp với miền hay không. Nó trả về giá trị true nếu bản ghi phù hợp với tất cả các điều kiện được chỉ định bởi miền.
+Domain.toString(): phương thức này trả về một chuỗi mô tả cho miền.
+Domain.toList([context]): phương thức này trả về một danh sách mô tả cho miền. Lưu ý rằng phương thức này có thể nhận một đối tượng ngữ cảnh tùy chọn được sử dụng để thay thế tất cả các biến tự do trong miền.
+Ví dụ: new Domain([('a', '>', b)]).toList({ b:3 }); trả về [['a', '>', 3]].
+Các phương thức này giúp cho việc xây dựng và kiểm tra miền trở nên dễ dàng hơn trong Odoo.
+lớp Domain cũng cung cấp 4 phương thức tĩnh hữu ích để kết hợp các miền như sau:
+Domain.and(domains): kết hợp các miền với toán tử "và" (&).
+Domain.or(domains): kết hợp các miền với toán tử "hoặc" (|).
+Domain.not(domain): phủ định một miền.
+Domain.combine(domains, operator): kết hợp các miền với một toán tử tùy ý.
+Các phương thức này giúp cho việc kết hợp các miền trở nên dễ dàng hơn trong Odoo. Ví dụ:
+Domain.and([[["a", "=", 1]], "[('uid', '<=', uid)]"]).toString() trả về ["&", ("a", "=", 1), ("uid", "<=", uid)].
+Domain.or([[["a", "=", 1]], "[('uid', '<=', uid)]"]).toString() trả về ["|", ("a", "=", 1), ("uid", "<=", uid)].
+Domain.not([["a", "=", 1]]).toString() trả về ["!", ("a", "=", 1)].
+Domain.combine([[["a", "=", 1]], "[('uid', '<=', uid)]"], "AND").toString() trả về ["&", ("a", "=", 1), ("uid", "<=", uid)].
+
+BUS
+Trong môi trường trình duyệt web của Odoo, đối tượng môi trường (environment object) chứa một bus sự kiện, được đặt tên là bus. Mục đích của nó là cho phép các phần khác nhau của hệ thống tương tác với nhau một cách đúng đắn, mà không gắn kết chúng với nhau. env.bus là một owl EventBus, được sử dụng cho các sự kiện toàn cục quan trọng trong hệ thống.
+owl EventBus là một thư viện cho phép các thành phần khác nhau trong ứng dụng giao tiếp với nhau bằng cách sử dụng một hệ thống sự kiện. Nó cung cấp các phương thức để đăng ký, hủy đăng ký và phát ra các sự kiện. Các thành phần khác nhau của ứng dụng có thể đăng ký các bộ lắng nghe sự kiện, và gửi sự kiện đến env.bus để thông báo cho các thành phần khác về các thay đổi trong hệ thống.
+env.bus được sử dụng rộng rãi trong Odoo để tương tác giữa các thành phần khác nhau của hệ thống, chẳng hạn như giữa các mô-đun, các trang web và các tác vụ nền.
+// for example, in some service code:
+env.bus.on("WEB_CLIENT_READY", null, doSomething);
+Đây là danh sách các sự kiện có thể được kích hoạt trên env.bus trong Odoo:
+ACTION_MANAGER:UI-UPDATED: được kích hoạt khi giao diện người dùng được cập nhật. Thông tin payload bao gồm chế độ (mode) cho biết phần nào của giao diện đã được cập nhật ("current", "new" hoặc "fullscreen").
+ACTION_MANAGER:UPDATE: được kích hoạt khi thông tin về việc hiển thị giao diện tiếp theo được tính toán xong. Thông tin payload bao gồm thông tin về việc hiển thị giao diện tiếp theo.
+MENUS:APP-CHANGED: được kích hoạt khi ứng dụng hiện tại của dịch vụ menu thay đổi.
+ROUTE_CHANGE: được kích hoạt khi băm URL thay đổi.
+RPC:REQUEST: được kích hoạt khi một yêu cầu RPC mới được bắt đầu. Thông tin payload bao gồm ID của yêu cầu RPC.
+RPC:RESPONSE: được kích hoạt khi một yêu cầu RPC hoàn tất. Thông tin payload bao gồm ID của yêu cầu RPC.
+WEB_CLIENT_READY: được kích hoạt khi ứng dụng web đã được gắn kết.
+FOCUS-VIEW: được kích hoạt khi chế độ xem chính được yêu cầu tập trung.
+CLEAR-CACHES: được kích hoạt khi tất cả các bộ nhớ cache nội bộ cần được xóa.
+CLEAR-UNCOMMITTED-CHANGES: được kích hoạt khi tất cả các thay đổi chưa được lưu trữ trên các chế độ xem cần được xóa.
+Các sự kiện này cho phép các thành phần khác nhau của hệ thống tương tác với nhau và thực hiện các hành động cụ thể khi các sự kiện được kích hoạt.
+
+BROWSER OBJECT
+Odoo cung cấp một đối tượng trình duyệt đặc biệt (browser object) cung cấp truy cập đến nhiều API trình duyệt, như location, localStorage hoặc setTimeout. Dưới đây là một ví dụ về cách sử dụng hàm browser.setTimeout:
+import { browser } from "@web/core/browser/browser";
+// somewhere in code
+browser.setTimeout(someFunction, 1000);
+Đúng vậy, đối tượng trình duyệt được cung cấp trong Odoo chủ yếu được sử dụng cho mục đích kiểm thử (testing), vì tất cả các mã sử dụng đối tượng trình duyệt này có thể được kiểm thử một cách dễ dàng bằng cách giả lập các chức năng tương ứng trong suốt quá trình kiểm thử.
+addEventListener
+cancelAnimationFrame
+clearInterval
+clearTimeout
+console
+Date
+fetch
+history
+localStorage
+location
+navigator
+open
+random
+removeEventListener
+requestAnimationFrame
+sessionStorage
+setInterval
+setTimeout
+XMLHttpRequest
+Việc sử dụng đối tượng trình duyệt trong Odoo cho phép các lập trình viên tạo ra các kiểm thử tự động (automated tests) cho các thành phần khác nhau của hệ thống, bao gồm cả các giao diện người dùng và các chức năng nội bộ. Các kiểm thử này có thể giúp đảm bảo tính ổn định và chất lượng của hệ thống trong suốt quá trình phát triển và bảo trì.
+Tóm lại, đối tượng trình duyệt trong Odoo cung cấp một cách tiếp cận dễ dàng và linh hoạt để tương tác với các chức năng trình duyệt trong ứng dụng của bạn, đặc biệt là trong việc kiểm thử tự động.
+
+DEBUG MODE
+Odoo có thể hoạt động trong chế độ debug (debug mode) trong một số trường hợp đặc biệt. Chế độ này được sử dụng cho hai mục đích chính:
+    Hiển thị thông tin/các trường bổ sung cho một số màn hình cụ thể.
+    Cung cấp một số công cụ bổ sung để giúp các nhà phát triển gỡ lỗi giao diện Odoo.
+Chế độ debug được mô tả bởi một chuỗi. Khi chuỗi này rỗng, có nghĩa là chế độ debug không được kích hoạt. Nếu chuỗi này chứa assets hoặc tests, thì các chế độ con tương ứng cụ thể sẽ được kích hoạt (xem chi tiết bên dưới). Cả hai chế độ có thể được kích hoạt cùng một lúc, ví dụ như chuỗi assets,tests.
+Các chế độ con của debug mode bao gồm:
+    assets: kích hoạt chế độ tải tài nguyên (asset loading) của Odoo, cho phép tải lại các tài nguyên tĩnh (CSS, JS, hình ảnh, v.v.) một cách nhanh chóng.
+    tests: kích hoạt chế độ kiểm thử (testing mode) của Odoo, cho phép chạy các bài kiểm tra (test cases) được định nghĩa trong ứng dụng của bạn.
+Tóm lại, chế độ debug trong Odoo cung cấp các công cụ hữu ích giúp các nhà phát triển gỡ lỗi và tối ưu hóa giao diện của họ. Các chế độ con của debug mode, bao gồm assets và tests, cũng cung cấp các chức năng bổ sung cho việc phát triển và kiểm thử các ứng dụng Odoo.
