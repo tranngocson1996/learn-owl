@@ -1,0 +1,143 @@
+Trong Odoo, quản lý tài sản không đơn giản như trong một số ứng dụng khác. Một trong những lý do là chúng ta có nhiều tình huống khác nhau, trong đó một số tài sản là bắt buộc, nhưng không phải tất cả các tài sản đều cần thiết. Ví dụ, nhu cầu của khách hàng web, ứng dụng điểm bán hàng, trang web hoặc thậm chí là ứng dụng di động là khác nhau. Ngoài ra, một số tài sản có thể lớn, nhưng ít khi được sử dụng: trong trường hợp đó, chúng ta có thể muốn chúng được lazy load (theo yêu cầu).
+
+ASSET TYPES
+Có ba loại tài sản khác nhau trong Odoo: mã (tệp js), kiểu dáng (tệp css hoặc scss) và mẫu (tệp xml).
+Mã
+Odoo hỗ trợ ba loại tệp javascript khác nhau. Tất cả các tệp này đều được xử lý (các module JS cơ bản được chuyển đổi thành các module odoo), sau đó được thu gọn (nếu không ở chế độ debug = assets) và được ghép nối. Kết quả sau đó được lưu dưới dạng tệp đính kèm. Những tệp đính kèm này thường được tải qua thẻ <script> trong phần <head> của trang (như một tệp tĩnh).
+Kiểu dáng
+Thiết kế có thể được thực hiện bằng css hoặc scss. Giống như các tệp javascript, các tệp này cũng được xử lý (các tệp scss được chuyển đổi thành css), sau đó được thu gọn (một lần nữa, nếu không ở chế độ debug = assets) và được ghép nối. Kết quả sau đó được lưu dưới dạng tệp đính kèm. Sau đó, chúng thường được tải qua thẻ <link> trong phần <head> của trang (như một tệp tĩnh).
+Mẫu
+Mẫu (các tệp xml tĩnh) được xử lý theo cách khác: chúng chỉ được đọc từ hệ thống tệp khi chúng được cần, và được ghép nối.
+Mỗi khi trình duyệt tải Odoo, nó gọi bộ điều khiển /web/webclient/qweb/ để tải các mẫu.
+Việc hiểu rằng trong hầu hết các trường hợp, trình duyệt chỉ thực hiện một yêu cầu duy nhất lần đầu tiên nó tải trang rất hữu ích. Điều này bởi vì mỗi tài sản này được liên kết với một checksum, được chèn vào nguồn trang. Checksum sau đó được thêm vào URL, điều này có nghĩa là có thể an toàn để đặt các tiêu đề bộ nhớ cache cho một khoảng thời gian dài.
+
+BUNDLES
+Các tài sản của Odoo được nhóm lại thành các gói. Mỗi gói (là một danh sách đường dẫn tệp của các loại cụ thể: xml, js, css hoặc scss) được liệt kê trong tệp định nghĩa module. Tệp có thể được khai báo bằng cú pháp glob, có nghĩa là bạn có thể khai báo nhiều tệp tài sản bằng một dòng duy nhất.
+Các gói được định nghĩa trong manifest.py của mỗi module, với một khóa tài sản riêng biệt chứa một từ điển. Từ điển ánh xạ tên gói (khóa) với danh sách các tệp mà chúng chứa (giá trị). Nó trông giống như thế này:
+'assets': {
+    'web.assets_backend': [
+        'web/static/src/xml/**/*',
+    ],
+    'web.assets_common': [
+        'web/static/lib/bootstrap/**/*',
+        'web/static/src/js/boot.js',
+        'web/static/src/js/webclient.js',
+    ],
+    'web.qunit_suite_tests': [
+        'web/static/src/js/webclient_tests.js',
+    ],
+},
+Dưới đây là danh sách một số bundle quan trọng mà hầu hết các nhà phát triển Odoo cần phải biết:
+    web.assets_common: bundle này chứa hầu hết các tài sản chung cho khách hàng web, trang web và cả điểm bán hàng. Đây được cho là chứa các khối xây dựng cấp thấp hơn cho khung Odoo. Lưu ý rằng nó chứa tệp boot.js, xác định hệ thống module odoo.
+    web.assets_backend: bundle này chứa mã cụ thể cho khách hàng web (đặc biệt là quản lý hành động khách hàng web / quản lý chế độ xem).
+    web.assets_frontend: bundle này liên quan đến tất cả những gì đặc biệt cho trang web công khai: thương mại điện tử, cổng thông tin, diễn đàn, blog, ...
+    web.assets_qweb: tất cả các mẫu XML tĩnh được sử dụng trong môi trường backend và trong điểm bán hàng.
+    web.qunit_suite_tests: tất cả mã kiểm tra qunit javascript (kiểm tra, trợ giúp, giả lập)
+    web.qunit_mobile_suite_tests: mã kiểm tra qunit cụ thể cho di động
+Operations
+Thông thường, xử lý tài sản là đơn giản: bạn chỉ cần thêm một số tệp mới vào một bundle thường được sử dụng như assets_common hoặc assets_backend. Tuy nhiên, cũng có các hoạt động khác có sẵn để bao phủ một số trường hợp sử dụng cụ thể hơn.
+append
+Thao tác "add" này thêm một hoặc nhiều tệp. Vì đây là thao tác phổ biến nhất, nó có thể được thực hiện chỉ bằng cách sử dụng tên tệp:
+'web.assets_common': [
+    'my_addon/static/src/js/**/*',
+],
+Mặc định, việc thêm một chuỗi đơn giản vào bundle sẽ đính kèm các tệp phù hợp với mẫu glob vào cuối bundle. Tất nhiên, mẫu cũng có thể trực tiếp là một đường dẫn tệp duy nhất.
+prepend
+Thêm một hoặc nhiều tệp vào đầu của bundle.
+Hữu ích khi bạn cần đặt một tệp cụ thể trước các tệp khác trong bundle (ví dụ với các tệp css). Thao tác prepend được gọi bằng cú pháp sau: ('prepend', <path>).
+before
+Thêm một hoặc nhiều tệp trước một tệp cụ thể.
+Thêm một tệp vào đầu của một bundle có thể không đủ chính xác. Chỉ thị before có thể được sử dụng để thêm các tệp được cung cấp ngay trước tệp đích. Nó được khai báo bằng cách thay thế đường dẫn bình thường bằng một bộ ba 3 phần ('before', <target>, <path>).
+'web.assets_common': [
+    ('before', 'web/static/src/css/bootstrap_overridden.scss', 'my_addon/static/src/css/bootstrap_overridden.scss'),
+],
+after
+Thêm một hoặc nhiều tệp sau một tệp cụ thể.
+Tương tự như trước đó, các tệp phù hợp được đính kèm ngay sau tệp đích. Nó được khai báo bằng cách thay thế đường dẫn bình thường bằng một bộ ba 3 phần ('after', <target>, <path>).
+'web.assets_common': [
+    ('after', 'web/static/src/css/list_view.scss', 'my_addon/static/src/css/list_view.scss'),
+],
+include
+Sử dụng nested bundles.
+Chỉ thị include là một cách để sử dụng một bundle trong các bundle khác để tối thiểu hóa kích thước của bảng khai báo. Trong Odoo, chúng ta sử dụng các sub bundle (được tiền tố bằng gạch dưới theo quy ước) để đóng gói các tệp được sử dụng trong nhiều bundle khác nhau. Sau đó, bạn có thể chỉ định sub bundle như một cặp ('include', <bundle>) như sau:
+'web.assets_common': [
+    ('include', 'web._primary_variables'),
+],
+remove
+Xóa một hoặc nhiều tệp.
+Trong một số trường hợp, bạn có thể muốn xóa một hoặc nhiều tệp khỏi bundle. Điều này có thể được thực hiện bằng cách sử dụng chỉ thị remove bằng cách chỉ định một cặp ('remove', <target>):
+'web.assets_common': [
+    ('remove', 'web/static/src/js/boot.js'),
+],
+replace
+Thay thế một tệp tài sản bằng một hoặc nhiều tệp.
+Hãy nói rằng một tài sản không chỉ cần được xóa, mà bạn còn muốn chèn phiên bản mới của tài sản đó vào cùng một vị trí chính xác. Điều này có thể được thực hiện với chỉ thị replace, sử dụng một bộ ba 3 phần ('replace', <target>, <path>):
+'web.assets_common': [
+    ('replace', 'web/static/src/js/boot.js', 'my_addon/static/src/js/boot.js'),
+],
+Loading order
+Thứ tự tải các tài sản đôi khi rất quan trọng và phải xác định được, chủ yếu cho các ưu tiên bảng kiểu và các tập lệnh thiết lập. Các tài sản trong Odoo được xử lý như sau:
+    Khi một bundle tài sản được gọi (ví dụ: t-call-assets = "web.assets_common"), một danh sách trống các tài sản được tạo ra.
+    Tất cả các bản ghi loại ir.asset phù hợp với bundle được lấy và sắp xếp theo số thứ tự. Sau đó, tất cả các bản ghi có số thứ tự nhỏ hơn nghiêm ngặt hơn 16 được xử lý và áp dụng cho danh sách tài sản hiện tại.
+    Tất cả các module khai báo tài sản cho bundle đó trong bảng khai báo của họ áp dụng các thao tác tài sản của họ cho danh sách này. Điều này được thực hiện theo thứ tự của các phụ thuộc của các module (ví dụ: tài sản web được xử lý trước tài sản trang web). Nếu chỉ thị cố gắng thêm một tệp đã có trong danh sách, thì không có gì được thực hiện cho tệp đó. Nói cách khác, chỉ có sự xuất hiện đầu tiên của một tệp được giữ trong danh sách.
+    Các bản ghi ir.asset còn lại (các bản ghi có số thứ tự lớn hơn hoặc bằng 16) được xử lý và áp dụng cũng như vậy.
+Các tài sản được khai báo trong bảng khai báo có thể cần phải được tải theo một thứ tự cụ thể, ví dụ như jquery.js phải được tải trước tất cả các tập lệnh jquery khác khi tải thư mục lib. Một giải pháp sẽ là tạo một bản ghi ir.asset với một số thứ tự thấp hơn hoặc một chỉ thị 'prepend', nhưng có một cách đơn giản hơn để làm điều đó.
+Vì tính duy nhất của mỗi đường dẫn tệp trong danh sách tài sản được đảm bảo, bạn có thể đề cập đến bất kỳ tệp cụ thể nào trước một glob bao gồm nó. Tệp đó sẽ xuất hiện trong danh sách trước tất cả các tệp khác được bao gồm trong glob.
+'web.assets_common': [
+    'my_addon/static/lib/jquery/jquery.js',
+    'my_addon/static/lib/jquery/**/*',
+],
+
+LAZY LOADING
+Đôi khi hữu ích để tải các tệp và/hoặc bundle tài sản theo cách động, ví dụ như chỉ tải thư viện khi nó cần thiết. Để làm điều đó, Odoo framework cung cấp một vài hàm trợ giúp, được đặt tại @web/core/assets.
+await loadAssets({
+    jsLibs: ["/web/static/lib/stacktracejs/stacktrace.js"],
+});
+loadAssets(assets)
+Đối số
+assets (Object()) - mô tả về các tài sản khác nhau cần được tải
+Trả về
+Promise<void>
+Tải các tài sản được mô tả bởi tham số tài sản. Đó là một đối tượng có thể chứa các khóa sau:
+jsLibs
+string[]
+a list of urls of javascript files
+cssLibs
+string[]
+a list of urls of css files
+useAssets(assets)
+Đối số
+assets (Object()) - mô tả về các tài sản khác nhau cần được tải
+Hook này hữu ích khi các thành phần cần tải một số tài sản trong phương thức onWillStart của chúng. Nó gọi loadAssets bên trong.
+
+THE ASSET MODEL (ir.asset)
+Trong hầu hết các trường hợp, các tài sản được khai báo trong bảng khai báo sẽ đủ linh hoạt. Tuy nhiên, để có thêm tính linh hoạt, framework cũng hỗ trợ tài sản động được khai báo trong cơ sở dữ liệu.
+Điều này được thực hiện bằng cách tạo các bản ghi ir.asset. Chúng sẽ được xử lý như thể chúng được tìm thấy trong bảng khai báo của một module, và chúng cho phép cùng một sức mạnh biểu hiện như các đối tượng khai báo trong bảng khai báo.
+Lớp odoo.addons.base.models.ir_asset.IrAsset(env, ids, prefetch_ids) đóng vai trò làm hai việc:
+    Nó cung cấp một hàm trả về một danh sách của tất cả các đường dẫn tệp được khai báo trong một danh sách các addon cụ thể (xem _get_addon_paths);
+    Nó cho phép tạo các bản ghi 'ir.asset' để thêm các chỉ thị bổ sung vào các bundle cụ thể.
+name
+Tên của bản ghi tài sản (để xác định mục đích).
+bundle
+Bundle mà trong đó tài sản sẽ được áp dụng.
+directive (mặc định= append)
+Trường này xác định cách mà đường dẫn (và mục tiêu nếu cần) sẽ được giải thích. Đây là danh sách các chỉ thị có sẵn cùng với các đối số bắt buộc của chúng:
+    append: path
+    prepend: path
+    before: target, path
+    after: target, path
+    include: path (được giải thích như một tên bundle)
+    remove: path (được giải thích như một tài sản mục tiêu để loại bỏ)
+    replace: target, path
+path
+Một chuỗi xác định một trong những điều sau:
+    một đường dẫn tương đối đến tệp tài sản trong hệ thống tệp addon;
+    một mẫu glob đến một tập hợp các tệp tài sản trong hệ thống tệp addon;
+    một URL đến một tệp tài sản hoặc tệp tài sản bên ngoài;
+    một tên bundle, khi sử dụng chỉ thị include.
+target
+Tệp mục tiêu để chỉ định một vị trí trong bundle. Chỉ có thể được sử dụng với các chỉ thị replace, before và after.
+active (mặc định= True)
+Xác định bản ghi có hoạt động hay không.
+sequence (mặc định= 16)
+Thứ tự tải các bản ghi tài sản (tăng dần). Một chuỗi thấp hơn 16 có nghĩa là tài sản sẽ được xử lý trước các tài sản được khai báo trong bảng khai báo.
