@@ -1,0 +1,7 @@
+REFERENCE LIST
+- ActionSwiper: Một thành phần swiper để thực hiện các hành động trên chạm vuốt
+- CheckBox: Một thành phần checkbox đơn giản với nhãn bên cạnh
+- ColorList: Một danh sách màu để lựa chọn
+- Dropdown: Dropdown đầy đủ tính năng
+- Notebook: Một thành phần để điều hướng giữa các trang bằng cách sử dụng các tab
+- Pager: Một thành phần nhỏ để xử lý phân trang
