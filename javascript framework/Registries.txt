@@ -1,0 +1,57 @@
+Registries (Bộ đăng ký) là các bản đồ key/value (khóa/giá trị) được sắp xếp. Chúng là các điểm mở rộng chính của ứng dụng mở rộng trên web của Odoo: nhiều tính năng được cung cấp bởi khung javascript của Odoo đơn giản chỉ tìm kiếm một bộ đăng ký mỗi khi nó cần một định nghĩa cho một đối tượng nào đó (chẳng hạn như trường, chế độ xem, hành động khách hàng hoặc dịch vụ). Việc tùy chỉnh ứng dụng mở rộng trên web sau đó được thực hiện bằng cách thêm các giá trị cụ thể vào bộ đăng ký đúng.
+import { Registry } from "@web/core/registry";
+const myRegistry = new Registry();
+myRegistry.add("hello", "odoo");
+console.log(myRegistry.get("hello"));
+Một tính năng hữu ích của các bộ đăng ký (registries) là chúng duy trì một tập hợp các bộ đăng ký con, được lấy bằng phương thức category. Nếu bộ đăng ký con chưa tồn tại, nó sẽ được tạo ra ngay lập tức. Tất cả các bộ đăng ký được sử dụng bởi ứng dụng mở rộng trên web đều được lấy theo cách này từ một bộ đăng ký gốc, được xuất trong @web/core/registry.
+import { registry } from "@web/core/registry";
+const fieldRegistry = registry.category("fields");
+const serviceRegistry = registry.category("services");
+const viewRegistry = registry.category("views");
+
+REGISTRY API
+- Registry.add(key, value[, options])
+Chèn một giá trị vào một khóa cụ thể. Nếu khóa đã được sử dụng, phương thức này sẽ ném ra một lỗi (trừ khi tùy chọn force được đặt thành true). Tùy chọn sequence hữu ích để chèn giá trị vào vị trí cụ thể. Phương thức này cũng kích hoạt một sự kiện UPDATE.
+Trả về cùng một bộ đăng ký, vì vậy các lệnh add method có thể được xếp chồng
+Đối số
+key (string()) - Khóa cho mục nhập mới
+value (any()) - Giá trị cho mục nhập mới
+options (Object()) - Tùy chọn
+[options.force] (boolean()) - Không ném ra lỗi nếu khóa đã tồn tại
+[options.sequence] (number()) - Số thứ tự (sequence number) (hữu ích để sắp xếp các mục nhập)
+Trả về
+Registry
+- Registry.get(key[, defaultValue])
+Trả về giá trị tương ứng với đối số key. Nếu bộ đăng ký không chứa khóa đó, phương thức này sẽ trả về defaultValue nếu được cung cấp, hoặc ném ra một lỗi nếu không có giá trị mặc định.
+Đối số
+key (string()) - Khóa cho mục nhập
+any (defaultValue()) - Giá trị trả về nếu không có mục nhập cho khóa
+- Registry.contains(key)
+Trả về true nếu khóa có trong bộ đăng ký
+Đối số
+key (string()) - Khóa cho mục nhập
+Trả về
+boolean
+- Registry.getAll()
+Trả về danh sách tất cả các phần tử trong bộ đăng ký. Nó được sắp xếp theo số thứ tự (sequence numbers)
+Trả về
+any[]
+- Registry.remove(key)
+Loại bỏ một cặp khóa/giá trị từ bộ đăng ký. Thao tác này kích hoạt một sự kiện UPDATE.
+Đối số
+key (string()) - Khóa cho mục nhập cần xóa
+- Registry.category(subcategory)
+Trả về bộ đăng ký con được liên kết với subcategory. Nếu nó chưa tồn tại, bộ đăng ký con sẽ được tạo ra tự động
+Đối số
+subcategory (string()) - Tên cho danh mục con
+Trả về
+Registry
+
+REFERENCE LIST
+- effects: Cài đặt cho tất cả các hiệu ứng có sẵn
+- formatters: Các hàm tiện ích để định dạng giá trị (đa số được sử dụng cho giá trị trường - field values)
+- main_components: Các thành phần cấp cao nhất (top level components)
+- parsers: Các hàm tiện ích để phân tích giá trị (đa số được sử dụng cho giá trị trường - field values)
+- services: Tất cả các dịch vụ cần được kích hoạt
+- systray: Các thành phần hiển thị trong khu vực systray trong thanh điều hướng
+- user_menuitems: Các mục menu hiển thị trong menu người dùng (phía trên bên phải của thanh điều hướng)
