@@ -1,0 +1,92 @@
+Odoo hỗ trợ ba loại tệp javascript khác nhau:
+    Tệp javascript thuần (không sử dụng hệ thống module),
+    Module javascript nguyên bản.
+    Module Odoo (sử dụng hệ thống module tùy chỉnh),
+Như đã mô tả trong trang quản lý tài sản, tất cả các tệp javascript được đóng gói lại và phục vụ cho trình duyệt. Lưu ý rằng các tệp javascript nguyên bản được xử lý bởi máy chủ Odoo và được chuyển đổi thành các module tùy chỉnh của Odoo.
+Hãy giải thích một cách ngắn gọn mục đích của mỗi loại tệp javascript. Tệp javascript thuần chỉ nên được dành riêng cho các thư viện bên ngoài và một số mục đích cấp thấp nhất cụ thể. Tất cả các tệp javascript mới nên được tạo ra trong hệ thống module javascript nguyên bản. Hệ thống module tùy chỉnh chỉ hữu ích cho các tệp cũ chưa được chuyển đổi.
+
+PLAIN JAVASCRIPT FILES
+Tệp javascript thuần có thể chứa nội dung tuỳ ý. Được khuyến cáo sử dụng phong cách thực thi hàm tự động được gọi ngay khi viết một tệp như vậy:
+(function () {
+  // some code here
+  let a = 1;
+  console.log(a);
+})();
+Lợi ích của các tệp như vậy là chúng ta tránh việc rò rỉ các biến cục bộ ra khỏi phạm vi toàn cục.
+Rõ ràng, các tệp javascript thuần không cung cấp các lợi ích của một hệ thống module, vì vậy người viết cần phải cẩn trọng về thứ tự trong bundle (vì trình duyệt sẽ thực thi chúng một cách chính xác theo thứ tự đó).
+Trong Odoo, tất cả các thư viện bên ngoài được tải dưới dạng các tệp javascript thuần.
+
+NATIVE JAVASCRIPT MODULES
+Hầu hết mã javascript mới của Odoo nên sử dụng hệ thống module javascript nguyên bản. Điều này đơn giản hơn và mang lại lợi ích của một trải nghiệm phát triển tốt hơn với tích hợp tốt hơn với IDE.
+Có một điểm rất quan trọng cần biết: Odoo cần biết những tệp nào nên được dịch thành các module Odoo và những tệp nào không nên được dịch. Đây là một hệ thống opt-in: Odoo sẽ xem xét dòng đầu tiên của một tệp JS và kiểm tra xem nó có chứa chuỗi @odoo-module hay không. Nếu có, nó sẽ tự động được chuyển đổi thành một module Odoo.
+Ví dụ, hãy xem xét một module sau, nằm trong web/static/src/file_a.js:
+/** @odoo-module **/
+import { someFunction } from './file_b';
+export function otherFunction(val) {
+    return someFunction(val + 3);
+}
+Chú ý đến comment trong dòng đầu tiên: nó mô tả rằng tệp này nên được chuyển đổi. Bất kỳ tệp nào không có comment này sẽ được giữ nguyên (điều này có thể dẫn đến lỗi). Sau đó, tệp này sẽ được dịch thành một module Odoo nhìn như thế này:
+odoo.define('@web/file_a', function (require) {
+'use strict';
+let __exports = {};
+const { someFunction } = require("@web/file_b");
+__exports.otherFunction = function otherFunction(val) {
+    return someFunction(val + 3);
+};
+return __exports;
+)};
+Vì vậy, như bạn có thể thấy, quá trình chuyển đổi đó đơn giản là thêm odoo.define vào đầu tệp và cập nhật các lệnh import/export.
+Một điểm quan trọng khác là module đã được dịch có một tên chính thức: @web/file_a. Đây là tên thực sự của module. Mọi lệnh import tương đối cũng sẽ được chuyển đổi. Mọi tệp nằm trong một addon Odoo some_addon/static/src/path/to/file.js sẽ được gán một tên được tiền tố bằng tên của addon như sau: @some_addon/path/to/file.
+Lệnh import tương đối hoạt động, nhưng chỉ khi các module đó nằm trong cùng một addon Odoo. Vì vậy, giả sử chúng ta có cấu trúc tệp như sau:
+addons/
+    web/
+        static/
+            src/
+                file_a.js
+                file_b.js
+    stock/
+        static/
+            src/
+                file_c.js
+Tệp file_b có thể import tệp file_a như sau:
+/** @odoo-module **/
+import {something} from `./file_a`
+Nhưng tệp file_c cần sử dụng tên đầy đủ:
+/** @odoo-module **/
+import {something} from `@web/file_a`
+Aliased modules
+Các module được đặt tên theo mẫu khác nhau so với các module javascript thông thường, do đó hệ thống này cho phép chuyển đổi một cách mượt mà sang hệ thống mới. Hiện tại, nếu một tệp được chuyển đổi thành một module Odoo (và do đó tuân theo quy tắc đặt tên mới), các tệp khác trong dự án chưa được chuyển đổi sang cú pháp giống như ES6 sẽ không thể yêu cầu module đó. Alias được sử dụng để ánh xạ các tên cũ với các tên mới bằng cách tạo ra một hàm proxy nhỏ. Sau đó, module có thể được gọi bằng cả tên mới và tên cũ.
+Để thêm alias như vậy, thẻ comment trên đầu tệp nên có dạng như sau:
+/** @odoo-module alias=web.someName**/
+import { someFunction } from './file_b';
+export default function otherFunction(val) {
+    return someFunction(val + 3);
+}
+Sau đó, module đã được dịch sẽ tạo ra một alias với tên được yêu cầu:
+odoo.define(`web.someName`, function(require) {
+    return require('@web/file_a')[Symbol.for("default")];
+});
+Hành vi mặc định của alias là re-export giá trị mặc định của module mà chúng ánh xạ. Điều này bởi vì các module "cổ điển" thường xuất ra một giá trị duy nhất được sử dụng trực tiếp, tương đối phù hợp với ngữ nghĩa của default exports. Tuy nhiên, cũng có thể trực tiếp ủy quyền hơn và tuân theo hành vi chính xác của module được ánh xạ:
+/** @odoo-module alias=web.someName default=0**/
+import { someFunction } from './file_b';
+export function otherFunction(val) {
+    return someFunction(val + 3);
+}
+Trong trường hợp này, điều này sẽ định nghĩa một alias với chính xác các giá trị được xuất ra bởi module ban đầu:
+odoo.define(`web.someName`, function(require) {
+    return require('@web/file_a');
+});
+Chỉ có thể định nghĩa một alias sử dụng phương pháp này. Nếu bạn cần thêm một alias khác để có, ví dụ, ba tên để gọi cùng một module, bạn sẽ phải thêm một proxy theo cách thủ công. Điều này không phải là một thực hành tốt và nên được tránh nếu không có lựa chọn nào khác.
+Tuy nhiên, nếu bạn cần nhiều tên để gọi module, bạn có thể sử dụng các alias khác nhau được xác định trong các module khác nhau. Ví dụ, bạn có thể định nghĩa một alias trong một module và sử dụng nó trong module khác.
+
+
+
+
+
+
+
+
+
+
+
+
